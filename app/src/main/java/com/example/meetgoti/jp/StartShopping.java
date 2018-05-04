@@ -91,6 +91,62 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
         IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
         registerReceiver(mReceiver, filter);
         registered=true;
+        buy.setOnClickListener( new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                b.send( "0" );
+                AlertDialog.Builder mBuilder=new AlertDialog.Builder( StartShopping.this );
+                View mView = getLayoutInflater().inflate(R.layout.activity_bill,null);
+                final TextView bill_total=(TextView) mView.findViewById( R.id.textView9 );
+                final TextView bill_weight=(TextView) mView.findViewById( R.id.textView11 );
+                bill_total.setText( Integer.toString( total ) );
+                bill_weight.setText( Integer.toString( weight ));
+                mBuilder.setView( mView )
+                        .setTitle( "Bill" )
+                        .setNegativeButton( "cancel", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+
+                            }
+                        } )
+                        .setPositiveButton( "submit", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                FirebaseDatabase database = FirebaseDatabase.getInstance();
+                                DatabaseReference myRef = database.getReference("Products");
+                                for(Product it:ProductsBill)
+                                {
+                                    int temp=Integer.parseInt(it.quantity);
+                                    int q=temp;
+                                    for(Product it2:Products)
+                                    {
+                                        if(it.barcode.equals( it2.barcode ))
+                                        {
+                                            q=Integer.parseInt(it2.quantity);
+                                            q=q-temp;
+                                        }
+                                    }
+                                    myRef.child(it.barcode).child( "quantity" ).setValue( Integer.toString(q) );
+                                }
+                                ProductsBill=new ArrayList<Product>(  );
+                                simpleList = (ListView) findViewById( R.id.simpleListView );
+                                System.out.println( ProductsBill );
+                                customAdapter = new CustomAdapter( getApplicationContext(), ProductsBill );
+                                simpleList.setAdapter( customAdapter );
+                                total=0;
+                                weight=0;
+                                TextView Total = (TextView) findViewById( R.id.textView7 );
+                                TextView Weight = (TextView) findViewById( R.id.weight );
+                                Total.setText( Integer.toString( total ) );
+                                Weight.setText( Integer.toString( weight ) );
+                            }
+                        } );
+
+
+                AlertDialog dialog=mBuilder.create();
+                dialog.show();
+            }
+        } );
         scan_btn.setOnClickListener( new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -123,7 +179,7 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
                             @Override
                             public void onClick(DialogInterface dialogInterface, int i) {
                                 if (mPassword.getText().toString().equals( "12345678" )) {
-                                    b.send( "3" );
+                                    b.send( "2" );
                                     remove=(Button)findViewById( R.id.button8 );
                                     remove.setEnabled( true );
                                 } else {
@@ -153,17 +209,18 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
                         count++;
                 }
                 b.send( "3" );
-                Toast.makeText( activity, Integer.toString( total ), Toast.LENGTH_SHORT ).show();
-                Toast.makeText( activity, Integer.toString( weight ), Toast.LENGTH_SHORT ).show();
+              //  Toast.makeText( activity, Integer.toString( total ), Toast.LENGTH_SHORT ).show();
+              //  Toast.makeText( activity, Integer.toString( weight ), Toast.LENGTH_SHORT ).show();
                 simpleList = (ListView) findViewById( R.id.simpleListView );
                 System.out.println( ProductsBill );
                 customAdapter = new CustomAdapter( getApplicationContext(), ProductsBill );
                 simpleList.setAdapter( customAdapter );
                 TextView Total = (TextView) findViewById( R.id.textView7 );
                 TextView Weight = (TextView) findViewById( R.id.weight );
-                Total.setText( Integer.toString( total ) );
+                 Total.setText( Integer.toString( total ) );
                 Weight.setText( Integer.toString( weight ) );
-                Toast.makeText( activity, "Removed", Toast.LENGTH_SHORT ).show();
+              //  Toast.makeText( activity, "Removed", Toast.LENGTH_SHORT ).show();
+                remove.setEnabled( false );
 
             }
         } );
@@ -183,7 +240,19 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
             else
             {
                // Toast.makeText( this ,result.getContents(),Toast.LENGTH_LONG).show();
-
+                int flag=1;
+                for(Product i:ProductsBill)
+                {
+                    if(i.barcode.equals(result.getContents().toString()  ))
+                    {
+                        int v=Integer.parseInt(i.quantity);
+                        v++;
+                        i.quantity=Integer.toString( v );
+                        flag=0;
+                        break;
+                    }
+                }
+                if(flag==1)
                 for(Product i:Products)
                 {
 
@@ -244,7 +313,7 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
             @Override
             public void run() {
                 scan_btn.setEnabled(true);
-                remove.setEnabled( true );
+                pass.setEnabled( true );
                 buy.setEnabled( true );
             }
         });
@@ -279,6 +348,19 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
     public void onDisconnect(BluetoothDevice device, String message) {
         Display("Disconnected!");
         Display("Connecting again...");
+        this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                scan_btn=(Button) findViewById( R.id.button5 );
+                pass=(Button) findViewById( R.id.button6 );
+                scan_btn.setEnabled(false);
+                buy=(Button) findViewById( R.id.button7 );
+                buy.setEnabled(false);
+                pass.setEnabled( false );
+                remove=(Button)findViewById( R.id.button8 );
+                remove.setEnabled( false );
+            }
+        });
         b.connectToDevice(device);
     }
 
@@ -311,7 +393,11 @@ public class StartShopping extends AppCompatActivity implements Bluetooth.Commun
             }
         });
     }
-
+    public void onBackPressed() {
+        Intent i = new Intent(StartShopping.this,MainActivity.class);
+        i.putExtra("Check","Check");
+        startActivity(i);
+    }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
